@@ -1511,6 +1511,44 @@ class AIX(Service):
         else:
             return self.execute_command("%s %s %s" % (srccmd, srccmd_parameter, self.name))
 
+class SlackwareService(Service):
+    """
+    This is the Slackware Linux Service manipulation class. Init scripts in 
+    /etc/rc.d are used for controlling services (start/stop) as well as for 
+    controlling the current state. PID files in /var/run are used to determine
+    if the service is currently running.
+    """
+
+    platform = 'Linux'
+    distribution = 'Slackware'
+
+    def get_service_tools(self):
+        initpaths = ['/etc/rc.d']
+
+        for initdir in initpaths:
+            initscript = "%s/rc.%s" % (initdir, self.name)
+            if os.path.isfile(initscript):
+                self.svc_initscript = initscript
+
+        if not self.svc_initscript:
+            self.module.fail_json(msg='unable to find rc.d script')
+
+    def service_enable(self):
+        if self.enable:
+            os.chmod(self.svc_initscript, 0o755)
+        else:
+            os.chmod(self.svc_initscript, 0o644)
+
+    def get_service_status(self):
+        pidfile = "/var/run/%s.pid" % (self.name)
+        if os.path.isfile(pidfile):
+            self.running = True
+        else:
+            self.running = False
+
+    def service_control(self):
+        self.svc_cmd = "%s" % self.svc_initscript
+        return self.execute_command("%s %s" % (self.svc_cmd, self.action), daemonize=True)
 
 # ===========================================
 # Main control flow
